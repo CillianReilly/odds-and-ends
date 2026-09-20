@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Factorle — guess the number by its primes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EAEDE6;
+  --surface:#F6F8F3;
+  --ink:#15211C;
+  --ink-soft:#5C6A62;
+  --rule:#CCD5CA;
+  --accent:#2B4FA0;
+  --exact:#2F8F5B;
+  --exact-ink:#FFFFFF;
+  --present:#C98A16;
+  --present-ink:#FFFFFF;
+  --absent:#9AA49B;
+  --absent-ink:#FFFFFF;
+  --chip-neutral:#C6CFC0;
+  --grid:rgba(21,33,28,.055);
+  --shadow:0 1px 0 rgba(21,33,28,.18);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0F1A16;
+    --surface:#18241F;
+    --ink:#E6ECE3;
+    --ink-soft:#93A198;
+    --rule:#2C3A33;
+    --accent:#7FA6F5;
+    --exact:#3E9E6B;
+    --present:#C39633;
+    --absent:#4A574F;
+    --chip-neutral:#25332C;
+    --grid:rgba(230,236,227,.05);
+    --shadow:0 1px 0 rgba(0,0,0,.4);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0F1A16;
+  --surface:#18241F;
+  --ink:#E6ECE3;
+  --ink-soft:#93A198;
+  --rule:#2C3A33;
+  --accent:#7FA6F5;
+  --exact:#3E9E6B;
+  --present:#C39633;
+  --absent:#4A574F;
+  --chip-neutral:#25332C;
+  --grid:rgba(230,236,227,.05);
+  --shadow:0 1px 0 rgba(0,0,0,.4);
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background-color:var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size:28px 28px;
+  color:var(--ink);
+  font-family:"Source Serif 4",Georgia,serif;
+  font-size:17px;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:620px;margin:0 auto;padding:22px 18px 64px}
+
+header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:1px solid var(--rule);padding-bottom:10px}
+h1{
+  font-family:"Space Grotesk",system-ui,sans-serif;
+  font-weight:700;font-size:26px;letter-spacing:-.02em;margin:0;
+}
+h1 span{color:var(--accent)}
+.modes{display:flex;gap:6px}
+.mode-btn{
+  font-family:"Space Grotesk",system-ui,sans-serif;font-size:13px;
+  background:none;border:1px solid var(--rule);color:var(--ink-soft);
+  border-radius:999px;padding:4px 11px;cursor:pointer;
+}
+.mode-btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+
+/* ---- hero: the unknown expression ---- */
+.hero{padding:26px 0 18px;text-align:center}
+.expr{
+  font-family:"Space Grotesk",system-ui,sans-serif;
+  font-weight:700;font-size:clamp(26px,8vw,42px);
+  letter-spacing:-.01em;
+  display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;justify-content:center;
+}
+.expr .q{
+  display:inline-grid;place-items:center;
+  min-width:1.35em;padding:0 .12em;
+  border-bottom:3px solid var(--ink);
+  color:var(--ink-soft);
+}
+.expr .times{color:var(--ink-soft);font-weight:400}
+.hero p{margin:12px 0 0;font-size:15px;color:var(--ink-soft)}
+
+/* ---- board ---- */
+.board{display:flex;flex-direction:column;gap:9px;margin:10px 0 16px}
+.row{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:8px 10px;border:1px solid var(--rule);border-radius:4px;
+  background:var(--surface);
+}
+.row.blank{background:transparent;border-style:dashed;opacity:.5;min-height:52px}
+.row .num{
+  font-family:"Space Grotesk",system-ui,sans-serif;font-weight:500;
+  font-variant-numeric:tabular-nums;font-size:19px;min-width:3.6em;text-align:right;
+}
+.row .eq{color:var(--ink-soft);font-size:17px}
+.tiles{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.tile{
+  position:relative;
+  font-family:"Space Grotesk",system-ui,sans-serif;font-weight:700;
+  font-variant-numeric:tabular-nums;font-size:18px;
+  min-width:40px;height:40px;padding:0 8px;
+  display:grid;place-items:center;border-radius:3px;color:#fff;
+  box-shadow:var(--shadow);
+}
+.tile.exact{background:var(--exact)}
+.tile.present{background:var(--present)}
+.tile.absent{background:var(--absent)}
+.tile .mark{
+  position:absolute;top:1px;right:3px;font-size:9px;line-height:1;opacity:.85;
+  font-family:"Space Grotesk",system-ui,sans-serif;font-weight:500;
+}
+.tile .cmp{
+  position:absolute;bottom:1px;left:3px;font-size:12px;line-height:1;opacity:.9;
+  font-family:"Space Grotesk",system-ui,sans-serif;font-weight:700;
+}
+.tile.cmp-lt,.tile.cmp-gt{padding-left:12px}
+.dot{color:var(--ink-soft);font-family:"Space Grotesk",sans-serif}
+.count-hint{
+  margin-left:auto;font-family:"Space Grotesk",system-ui,sans-serif;
+  font-size:12px;color:var(--ink-soft);white-space:nowrap;
+}
+
+/* ---- prime ledger ---- */
+.ledger{border-top:1px solid var(--rule);padding-top:12px;margin-top:4px}
+.ledger h2{font-family:"Space Grotesk",sans-serif;font-size:14px;font-weight:500;color:var(--ink-soft);margin:0 0 8px}
+.ledger-list{display:flex;flex-direction:column;gap:7px;align-items:center}
+.prime-row{display:flex;justify-content:center;flex-wrap:wrap;gap:6px}
+.chip{
+  font-family:"Space Grotesk",sans-serif;font-weight:500;font-size:14px;
+  padding:3px 9px;border-radius:3px;color:#fff;
+  border:none;margin:0;appearance:none;-webkit-appearance:none;
+  cursor:pointer;transition:filter .08s ease,transform .08s ease;
+}
+.chip:hover:not(:disabled){filter:brightness(1.1);transform:translateY(-1px)}
+.chip:active:not(:disabled){transform:translateY(0)}
+.chip:disabled{cursor:default;opacity:.55}
+.chip.exact{background:var(--exact)}
+.chip.present{background:var(--present)}
+.chip.absent{background:var(--absent)}
+.chip.unknown{background:var(--chip-neutral);border:1px solid rgba(0,0,0,.08);color:var(--ink-soft)}
+.ledger-empty{font-size:15px;color:var(--ink-soft);margin:0}
+
+/* ---- input ---- */
+.entry{margin-top:20px}
+.display{
+  width:100%;text-align:center;
+  font-family:"Space Grotesk",system-ui,sans-serif;font-weight:700;
+  font-variant-numeric:tabular-nums;font-size:34px;letter-spacing:.02em;
+  padding:10px 8px;border:2px solid var(--rule);border-radius:4px;
+  background:var(--surface);color:var(--ink);min-height:62px;
+}
+.display::placeholder{color:var(--ink-soft);opacity:1}
+.display:disabled{opacity:.6}
+.status{min-height:24px;margin:8px 0 2px;text-align:center;font-size:15px;color:var(--ink-soft)}
+.status.warn{color:var(--accent)}
+.input-wrap{position:relative}
+.input-wrap .display{padding-right:82px}
+.icon-btn{
+  position:absolute;top:50%;transform:translateY(-50%);
+  width:32px;height:32px;display:grid;place-items:center;
+  border:none;background:none;border-radius:50%;
+  font-family:"Space Grotesk",system-ui,sans-serif;font-size:20px;line-height:1;
+  color:var(--ink-soft);cursor:pointer;
+}
+.icon-btn:hover:not(:disabled){background:var(--chip-neutral);color:var(--ink)}
+.icon-btn:disabled{opacity:0;pointer-events:none}
+.icon-btn[data-empty="true"]{opacity:0;pointer-events:none}
+.undo-btn{right:42px;font-size:17px}
+.clear-btn{right:6px;font-size:22px}
+button:focus-visible,.display:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---- endgame + rules ---- */
+.result{
+  margin-top:18px;padding:16px;border:1px solid var(--accent);border-radius:4px;background:var(--surface);
+}
+.result h2{font-family:"Space Grotesk",sans-serif;font-size:20px;margin:0 0 6px}
+.result p{margin:0 0 10px}
+.result-actions{display:flex;gap:8px;flex-wrap:wrap}
+.result-actions button{
+  font-family:"Space Grotesk",sans-serif;font-size:15px;padding:8px 14px;
+  border-radius:4px;border:1px solid var(--accent);background:none;color:var(--accent);cursor:pointer;
+}
+details{margin-top:28px;border-top:1px solid var(--rule);padding-top:14px}
+summary{font-family:"Space Grotesk",sans-serif;font-size:15px;color:var(--ink-soft);cursor:pointer}
+details p{max-width:62ch;font-size:16px}
+details .legend{display:flex;flex-direction:column;gap:6px;margin:12px 0}
+details .legend div{display:flex;gap:10px;align-items:center}
+@media (prefers-reduced-motion: no-preference){
+  .tile{animation:pop .22s ease-out both}
+  @keyframes pop{from{transform:scale(.86);opacity:0}to{transform:scale(1);opacity:1}}
+}
+@media (max-width:420px){
+  .row .num{min-width:3em;font-size:17px}
+  .tile{min-width:34px;height:34px;font-size:16px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Factor<span>le</span></h1>
+  <div class="modes">
+    <button class="mode-btn" id="mDaily" aria-pressed="true">Daily</button>
+    <button class="mode-btn" id="mPractice" aria-pressed="false">Practice</button>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="expr" id="expr" aria-label="Hidden factorisation"></div>
+  <p id="heroNote"></p>
+</section>
+
+<div class="board" id="board"></div>
+
+<section class="ledger">
+  <div class="ledger-list" id="primeGrid"></div>
+</section>
+
+<section class="entry">
+  <div class="input-wrap">
+    <input class="display" id="guessInput" type="text" inputmode="numeric" pattern="[0-9]*"
+           autocomplete="off" autocorrect="off" spellcheck="false"
+           placeholder="" aria-label="Your guess">
+    <button class="icon-btn undo-btn" id="kUndo" type="button" aria-label="Undo last multiplication">&#8630;</button>
+    <button class="icon-btn clear-btn" id="kClear" type="button" aria-label="Clear guess">&times;</button>
+  </div>
+  <p class="status" id="status"></p>
+</section>
+
+<div id="resultSlot"></div>
+
+<details>
+  <summary>How to play</summary>
+  <p>A secret number is hiding. Guess any whole number of 2 or more and Factorle breaks your guess into its prime factors, smallest first, then lines them up against the secret number's factors position by position. Your guess can't have more prime factors (counting repeats) than the secret does — so once you know the secret has, say, four, a guess with five or more won't be accepted. Type a number or build one by tapping primes below, then press Enter to submit it. Any prime that's turned green or yellow must appear in every guess from then on.</p>
+  <div class="legend">
+    <div><span class="tile exact" style="animation:none">3</span> This prime sits in exactly that position in the secret factorisation.</div>
+    <div><span class="tile present" style="animation:none">5</span> This prime is in the secret factorisation, but somewhere else.</div>
+    <div><span class="tile absent" style="animation:none">7</span> This prime doesn't divide the secret number at all.</div>
+  </div>
+  <p>Every prime under 100 is listed above the guess box. As you guess, each one turns green (confirmed, right position in some guess), yellow (confirmed in the secret, wrong position so far), or dark (confirmed not a factor) — primes you haven't narrowed down yet stay neutral.</p>
+  <p>The secret number's primes are all under 100, and it can repeat one just like your guess can — if you guess 2 twice but the secret only has one 2, only one of those tiles can earn colour. The arrow at the right of each row tells you whether the secret number has more or fewer prime factors than your guess. Six guesses, then the answer.</p>
+</details>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+
+var MAX_GUESSES = 6, POOL_MAX = 9999, MAX_TYPED_DIGITS = 15;
+
+/* ---------- number theory ---------- */
+function factorise(n){
+  var f = [], d = 2;
+  while (d * d <= n){
+    while (n % d === 0){ f.push(d); n = n / d; }
+    d += (d === 2) ? 1 : 2;
+  }
+  if (n > 1) f.push(n);
+  return f;
+}
+
+/* Candidate secrets: 3 to 5 prime factors, each one under 100. Repeats allowed. */
+var POOL = (function(){
+  var pool = [];
+  for (var n = 12; n <= POOL_MAX; n++){
+    var f = factorise(n);
+    if (f.length < 3 || f.length > 5) continue;
+    if (f[f.length - 1] >= 100) continue;
+    pool.push(n);
+  }
+  return pool;
+})();
+
+function hash(str){
+  var h = 2166136261;
+  for (var i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0);
+}
+function todayKey(){
+  var d = new Date();
+  return d.getUTCFullYear() + "-" + (d.getUTCMonth() + 1) + "-" + d.getUTCDate();
+}
+function puzzleNumber(){
+  return Math.floor((Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate())
+    - Date.UTC(2024, 0, 1)) / 86400000);
+}
+
+/* Two-pass grading, exactly like Wordle but over a multiset of primes.
+   Also returns "leftover": the target's prime instances that this guess
+   never accounted for (neither exact nor present) — used to tell an
+   absent tile whether it's strictly below or above what's left to find. */
+function grade(guess, secret){
+  var res = new Array(guess.length).fill("absent");
+  var used = new Array(secret.length).fill(false), left = {}, i, j;
+  for (i = 0; i < Math.min(guess.length, secret.length); i++){
+    if (guess[i] === secret[i]){ res[i] = "exact"; used[i] = true; }
+  }
+  for (j = 0; j < secret.length; j++){
+    if (!used[j]) left[secret[j]] = (left[secret[j]] || 0) + 1;
+  }
+  for (i = 0; i < guess.length; i++){
+    if (res[i] === "exact") continue;
+    var p = guess[i];
+    if (left[p] > 0){ left[p]--; res[i] = "present"; }
+  }
+  var leftover = [];
+  Object.keys(left).forEach(function(k){
+    for (var c = 0; c < left[k]; c++) leftover.push(Number(k));
+  });
+  return { marks: res, leftover: leftover };
+}
+
+/* ---------- state ---------- */
+var S = { mode:"daily", secret:0, secretF:[], guesses:[], over:false, won:false };
+var multiplyHistory = [];
+
+function newGame(mode){
+  S.mode = mode;
+  S.guesses = []; S.over = false; S.won = false;
+  multiplyHistory = [];
+  if (mode === "daily"){
+    S.secret = POOL[hash("factorle-" + todayKey()) % POOL.length];
+    var saved = load();
+    if (saved && saved.secret === S.secret && saved.guesses){
+      S.guesses = saved.guesses;
+      saved.guesses.forEach(function(g){ if (g === S.secret) { S.over = true; S.won = true; } });
+      if (S.guesses.length >= MAX_GUESSES) S.over = true;
+    }
+  } else {
+    S.secret = POOL[Math.floor(Math.random() * POOL.length)];
+  }
+  S.secretF = factorise(S.secret);
+  render();
+}
+
+function save(){
+  if (S.mode !== "daily") return;
+  try { localStorage.setItem("factorle:" + todayKey(),
+    JSON.stringify({ secret:S.secret, guesses:S.guesses })); } catch(e){}
+}
+function load(){
+  try { var raw = localStorage.getItem("factorle:" + todayKey()); return raw ? JSON.parse(raw) : null; }
+  catch(e){ return null; }
+}
+
+/* ---------- rendering ---------- */
+var $ = function(id){ return document.getElementById(id); };
+
+function renderHero(){
+  var e = $("expr"); e.innerHTML = "";
+  var known = S.over ? S.secretF : null;
+  for (var i = 0; i < S.secretF.length; i++){
+    if (i){ var t = document.createElement("span"); t.className = "times"; t.textContent = "×"; e.appendChild(t); }
+    var q = document.createElement("span"); q.className = "q";
+    q.textContent = known ? known[i] : "?";
+    if (known) q.style.color = "var(--ink)";
+    e.appendChild(q);
+  }
+  $("heroNote").textContent = S.over
+    ? (S.won ? "Solved — that's " + S.secret + "." : "The number was " + S.secret + ".")
+    : "The hidden number has " + S.secretF.length + " prime factors. You have "
+      + (MAX_GUESSES - S.guesses.length) + " guess" + (MAX_GUESSES - S.guesses.length === 1 ? "" : "es") + " left.";
+}
+
+function renderBoard(){
+  var b = $("board"); b.innerHTML = "";
+  S.guesses.forEach(function(g){
+    var f = factorise(g), graded = grade(f, S.secretF), marks = graded.marks, leftover = graded.leftover;
+    var row = document.createElement("div"); row.className = "row";
+
+    var num = document.createElement("span"); num.className = "num"; num.textContent = g; row.appendChild(num);
+    var eq = document.createElement("span"); eq.className = "eq"; eq.textContent = "="; row.appendChild(eq);
+
+    var tiles = document.createElement("span"); tiles.className = "tiles";
+    f.forEach(function(p, i){
+      if (i){ var d = document.createElement("span"); d.className = "dot"; d.textContent = "×"; tiles.appendChild(d); }
+      var tile = document.createElement("span");
+      tile.className = "tile " + marks[i];
+      tile.textContent = p;
+      var label = p + ": " + (marks[i] === "exact" ? "right prime, right position"
+        : marks[i] === "present" ? "right prime, wrong position" : "not a factor");
+
+      var cmp = null;
+      if (marks[i] === "absent" && leftover.length){
+        if (leftover.every(function(x){ return p < x; })) cmp = "lt";
+        else if (leftover.every(function(x){ return p > x; })) cmp = "gt";
+      }
+      if (cmp){
+        tile.classList.add("cmp-" + cmp);
+        label += cmp === "lt" ? " — lower than the primes still unplaced" : " — higher than the primes still unplaced";
+      }
+      tile.setAttribute("aria-label", label);
+
+      var m = document.createElement("span"); m.className = "mark";
+      m.textContent = marks[i] === "exact" ? "✓" : marks[i] === "present" ? "↔" : "–";
+      tile.appendChild(m);
+
+      if (cmp){
+        var c = document.createElement("span"); c.className = "cmp";
+        c.textContent = cmp === "lt" ? "<" : ">";
+        tile.appendChild(c);
+      }
+
+      tiles.appendChild(tile);
+    });
+    row.appendChild(tiles);
+
+    var hint = document.createElement("span"); hint.className = "count-hint";
+    var diff = S.secretF.length - f.length;
+    hint.textContent = diff === 0 ? (g === S.secret ? "exact" : "same length")
+      : diff > 0 ? "↑ " + diff + " more factor" + (diff === 1 ? "" : "s")
+      : "↓ " + (-diff) + " fewer factor" + (diff === -1 ? "" : "s");
+    row.appendChild(hint);
+    b.appendChild(row);
+  });
+
+  for (var i = S.guesses.length; i < MAX_GUESSES; i++){
+    var blank = document.createElement("div"); blank.className = "row blank"; b.appendChild(blank);
+  }
+}
+
+var ALL_PRIMES = [2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97];
+var PRIME_ROW_SIZES = [8, 9, 8]; // 25 primes split into 3 centred rows
+
+function primeBestStatus(){
+  var best = {}, rank = { absent:0, present:1, exact:2 };
+  S.guesses.forEach(function(g){
+    var f = factorise(g), marks = grade(f, S.secretF).marks;
+    f.forEach(function(p, i){
+      if (best[p] === undefined || rank[marks[i]] > rank[best[p]]) best[p] = marks[i];
+    });
+  });
+  return best;
+}
+
+function renderPrimeGrid(){
+  var best = primeBestStatus();
+  var el = $("primeGrid"); el.innerHTML = "";
+  var idx = 0;
+  PRIME_ROW_SIZES.forEach(function(size){
+    var row = document.createElement("div"); row.className = "prime-row";
+    for (var k = 0; k < size; k++, idx++){
+      var p = ALL_PRIMES[idx];
+      var state = best[p] || "unknown";
+      var c = document.createElement("button");
+      c.type = "button";
+      c.className = "chip " + state;
+      c.textContent = p;
+      c.disabled = S.over;
+      c.title = (state === "unknown" ? "not narrowed down yet"
+        : state === "absent" ? "not a factor" : "divides the hidden number") + " — click to multiply into your guess";
+      c.addEventListener("click", function(prime){ return function(){ clickPrime(prime); }; }(p));
+      row.appendChild(c);
+    }
+    el.appendChild(row);
+  });
+}
+
+function updateClearVisibility(){
+  $("kClear").setAttribute("data-empty", $("guessInput").value === "" ? "true" : "false");
+}
+function updateUndoVisibility(){
+  $("kUndo").setAttribute("data-empty", multiplyHistory.length === 0 ? "true" : "false");
+}
+
+function clickPrime(p){
+  if (S.over) return;
+  var input = $("guessInput");
+  var cur = input.value.replace(/[^0-9]/g, "");
+  var curBig = cur === "" ? 1n : BigInt(cur);
+  var next = curBig * BigInt(p);
+  var nextStr = next.toString();
+  if (nextStr.length > MAX_TYPED_DIGITS){
+    say("That guess is already at the digit limit — press Enter or clear it first.", true);
+    return;
+  }
+  multiplyHistory.push(cur);
+  input.value = nextStr;
+  say("");
+  updateClearVisibility();
+  updateUndoVisibility();
+  input.focus();
+}
+
+function undoMultiply(){
+  if (S.over || !multiplyHistory.length) return;
+  var input = $("guessInput");
+  input.value = multiplyHistory.pop();
+  say("");
+  updateClearVisibility();
+  updateUndoVisibility();
+  input.focus();
+}
+
+function renderEntry(){
+  var input = $("guessInput"), clear = $("kClear"), undo = $("kUndo");
+  input.disabled = S.over;
+  clear.disabled = S.over;
+  undo.disabled = S.over;
+  updateClearVisibility();
+  updateUndoVisibility();
+}
+
+function renderResult(){
+  var slot = $("resultSlot"); slot.innerHTML = "";
+  if (!S.over) return;
+  var box = document.createElement("div"); box.className = "result";
+  var h = document.createElement("h2");
+  h.textContent = S.won ? "Got it in " + S.guesses.length + "." : "Out of guesses.";
+  var p = document.createElement("p");
+  p.textContent = S.secret + " = " + S.secretF.join(" × ");
+  box.appendChild(h); box.appendChild(p);
+
+  var acts = document.createElement("div"); acts.className = "result-actions";
+  var again = document.createElement("button");
+  again.textContent = S.mode === "daily" ? "Play a practice number" : "New practice number";
+  again.onclick = function(){ setMode("practice"); };
+  var share = document.createElement("button");
+  share.textContent = "Copy result";
+  share.onclick = function(){ copyShare(share); };
+  acts.appendChild(again); acts.appendChild(share);
+  box.appendChild(acts);
+  slot.appendChild(box);
+}
+
+function shareText(){
+  var head = "Factorle " + (S.mode === "daily" ? "#" + puzzleNumber() + " " : "practice ")
+    + (S.won ? S.guesses.length : "X") + "/" + MAX_GUESSES;
+  var lines = S.guesses.map(function(g){
+    return grade(factorise(g), S.secretF).marks.map(function(m){
+      return m === "exact" ? "🟩" : m === "present" ? "🟨" : "⬜";
+    }).join("");
+  });
+  return head + "\n" + lines.join("\n");
+}
+function copyShare(btn){
+  var txt = shareText();
+  var done = function(){ btn.textContent = "Copied"; setTimeout(function(){ btn.textContent = "Copy result"; }, 1600); };
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(done, function(){ fallback(txt, done); });
+  } else fallback(txt, done);
+}
+function fallback(txt, done){
+  var ta = document.createElement("textarea");
+  ta.value = txt; ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand("copy"); done(); } catch(e){ say("Couldn't copy — select the text manually."); }
+  document.body.removeChild(ta);
+}
+
+function render(){
+  renderHero(); renderBoard(); renderPrimeGrid(); renderEntry(); renderResult();
+}
+function say(msg, warn){
+  var s = $("status"); s.textContent = msg || "";
+  s.className = "status" + (warn ? " warn" : "");
+}
+
+/* ---------- input ---------- */
+function submit(){
+  if (S.over) return;
+  var input = $("guessInput");
+  var raw = input.value.trim();
+  var n = parseInt(raw, 10);
+  if (!raw || isNaN(n) || String(n) !== raw) return say("Type a whole number first.", true);
+  if (n < 2) return say("Guess a number of 2 or more — 1 has no prime factors.", true);
+  if (S.guesses.indexOf(n) !== -1) return say("You've already tried " + n + ".", true);
+  var guessFactors = factorise(n);
+  var best = primeBestStatus();
+  var required = Object.keys(best).map(Number).filter(function(p){ return best[p] !== "absent"; });
+  var missing = required.filter(function(p){ return guessFactors.indexOf(p) === -1; });
+  if (missing.length){
+    return say("Must include confirmed prime" + (missing.length > 1 ? "s " : " ")
+      + missing.join(", ") + ".", true);
+  }
+  var guessFactorCount = guessFactors.length;
+  if (guessFactorCount > S.secretF.length){
+    return say("Too many prime factors — the secret has only " + S.secretF.length
+      + ", counting repeats.", true);
+  }
+
+  S.guesses.push(n);
+  input.value = "";
+  multiplyHistory = [];
+  if (n === S.secret){ S.won = true; S.over = true; }
+  else if (S.guesses.length >= MAX_GUESSES){ S.over = true; }
+  save();
+  render();
+  say(S.over ? "" : "");
+}
+
+$("guessInput").addEventListener("input", function(ev){
+  ev.target.value = ev.target.value.replace(/[^0-9]/g, "").slice(0, MAX_TYPED_DIGITS);
+  multiplyHistory = [];
+  updateClearVisibility();
+  updateUndoVisibility();
+});
+$("guessInput").addEventListener("keydown", function(ev){
+  if (ev.key === "Enter"){ submit(); ev.preventDefault(); }
+});
+$("kClear").addEventListener("click", function(){
+  if (S.over) return;
+  var input = $("guessInput");
+  input.value = "";
+  multiplyHistory = [];
+  say("");
+  updateClearVisibility();
+  updateUndoVisibility();
+  input.focus();
+});
+$("kUndo").addEventListener("click", undoMultiply);
+
+function setMode(mode){
+  $("mDaily").setAttribute("aria-pressed", mode === "daily");
+  $("mPractice").setAttribute("aria-pressed", mode === "practice");
+  say("");
+  newGame(mode);
+}
+$("mDaily").onclick = function(){ setMode("daily"); };
+$("mPractice").onclick = function(){ setMode("practice"); };
+
+setMode("daily");
+})();
+</script>
+</body>
+</html>
